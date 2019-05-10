@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2018/10/10 14:40:07.000.759,=C:\Users\WJL\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2018/10/10 14:41:54.000.047,=C:\Users\WJL\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2019/05/07 15:17:45.000.555,=C:\Users\WJL\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2019/05/07 15:18:35.000.332,C:\Users\WJL\Documents\Embarcadero\Studio\Projects\Unit1.pas=D:\04.Game\test\Unit1.pas</Transaction>
+    <Transaction>2019/05/07 15:18:35.000.332,C:\Users\WJL\Documents\Embarcadero\Studio\Projects\Unit1.dfm=D:\04.Game\test\Unit1.dfm</Transaction>
+    <Transaction>2019/05/07 15:18:42.000.168,C:\Users\WJL\Documents\Embarcadero\Studio\Projects\Project1.dproj=D:\04.Game\test\Project1.dproj</Transaction>
+    <Transaction>2019/05/07 15:34:45.000.737,=D:\04.Game\test\GBMemory.pas</Transaction>
+    <Transaction>2019/05/07 15:34:45.000.654,=D:\04.Game\test\GBGpu.pas</Transaction>
+    <Transaction>2019/05/07 15:34:45.000.624,=D:\04.Game\test\GBCpu.pas</Transaction>
+    <Transaction>2019/05/07 15:34:45.000.763,=D:\04.Game\test\GBRom.pas</Transaction>
+    <Transaction>2019/05/07 15:34:45.000.680,=D:\04.Game\test\GBInterruptManager.pas</Transaction>
+    <Transaction>2019/05/07 15:34:45.000.789,=D:\04.Game\test\GBTimer.pas</Transaction>
+    <Transaction>2019/05/07 15:34:45.000.218,=D:\04.Game\test\GBCartridge.pas</Transaction>
+    <Transaction>2019/05/07 15:34:45.000.706,=D:\04.Game\test\GBMbc.pas</Transaction>
+    <Transaction>2019/05/10 15:05:27.000.351,=D:\04.Game\test\Unit2.pas</Transaction>
+    <Transaction>2019/05/10 15:05:32.000.482,D:\04.Game\test\Unit2.pas=D:\04.Game\test\GBJoypad.pas</Transaction>
+    <Transaction>2019/05/10 15:37:05.000.749,=D:\04.Game\test\Unit2.pas</Transaction>
+    <Transaction>2019/05/10 15:37:09.000.970,D:\04.Game\test\Unit2.pas=D:\04.Game\test\GBTypes.pas</Transaction>
+  </Transactions>
+	<ActiveMobileDevice>
+		<NoProfile iOSSimulator="iPhone5"/>
+	</ActiveMobileDevice>
+</BorlandProject>
