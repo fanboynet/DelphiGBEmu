@@ -1,5 +1,6 @@
 # DelphiGBEmu
 A GameBoy Emulator , Delphi implementation
+![image](https://github.com/fanboynet/DelphiGBEmu/blob/master/wjlgb.gif)
 这是一个用Delphi写的Gameboy模拟器.....
 代码抄自java-gb，用delphi去实现了一下。
 问题还是非常多，图形部分，还得调整。
