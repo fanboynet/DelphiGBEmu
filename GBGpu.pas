@@ -377,13 +377,13 @@ begin
   for I := 0 to 159 do
   begin
     colorint := tileset[tile][y][x];
-//    screen[canvasOffset] := backgroundPalette[colorint];
+    screen[canvasOffset] := backgroundPalette[colorint];
     //测试直接画到bmp上...
-    if line = 0 then
-      screenX := 0
-    else
-      screenX := canvasOffset mod (160*line);
-    bmpScreen.Canvas.Pixels[screenX,line]:= wjlGBColor[backgroundPalette[colorint]];
+//    if line = 0 then
+//      screenX := 0
+//    else
+//      screenX := canvasOffset mod (160*line);
+//    bmpScreen.Canvas.Pixels[screenX,line]:= wjlGBColor[backgroundPalette[colorint]];
 
     canvasOffset := canvasOffset + 1;
     scanlineRow[I] := colorint;
@@ -475,13 +475,13 @@ begin
           color := pal[tilerow[7-J]]
         else
           color := pal[tilerow[J]];
-//        screen[canvasoffs] := color;
+        screen[canvasoffs] := color;
         //测试直接画到bmp上...
-        if line = 0 then
-          screenX := 0
-        else
-          screenX := canvasoffs mod (160*line);
-        bmpScreen.Canvas.Pixels[screenX,line]:=  backgroundPalette[color];
+//        if line = 0 then
+//          screenX := 0
+//        else
+//          screenX := canvasoffs mod (160*line);
+//        bmpScreen.Canvas.Pixels[screenX,line]:=  backgroundPalette[color];
       canvasoffs := canvasoffs + 1;
       end;
     end;
@@ -520,8 +520,8 @@ begin
           currentMode := Mode.VBLANK;
           GBInterrupt.Instance.raiseInterruptByIdx(4);// VBLANK
           // 显示器渲染screen
-//          Form1.drawScreen(pscreen);
-          Form1.drawScreenBMP(pbmpScreen);
+          Form1.drawScreen(pscreen);
+//          Form1.drawScreenBMP(pbmpScreen);
 //          Form1.isLCDOpen := True;
         end else
         begin

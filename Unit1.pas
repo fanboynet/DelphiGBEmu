@@ -4,11 +4,17 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, DXDraws;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
 type
   PScreenArr = ^TScreenArry;
   TScreenArry = array[0..23039] of Integer;
   PGBBmpScren = ^TBitmap;
+type
+  TRGB32 = packed record
+    B, G, R, A: Byte;
+  end;
+  TRGB32Array = packed array[0..MaxInt div SizeOf(TRGB32)-1] of TRGB32;
+  PRGB32Array = ^TRGB32Array;
 const
     GBColor : array[0..3] of Integer = (clBlue,clYellow,clRed,clBlack);
 type
@@ -18,7 +24,6 @@ type
     Label2: TLabel;
     Timer1: TTimer;
     Image1: TImage;
-    DXDraw1: TDXDraw;
     procedure Button2Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
@@ -57,7 +62,7 @@ var
   _Pmbc:PGBMbc;
 begin
 //  getPath := 'C:\Users\WJL\Desktop\EmuDoc\java-gameboy-emu-master\TestROMs\Super Mario Land (World).gb';
-  getPath := 'C:/Users/WJL/Desktop/EmuDoc/Tetris.gb';
+  getPath := 'D:\Emulator\GB\Tetris.gb';
   getStream := TFileStream.Create(getPath, fmOpenRead or fmShareExclusive);
   getStream.Position := 0;
   rom := TGBRom.Create;
@@ -70,74 +75,71 @@ begin
   mem := TGBMemory.Create(_pmbc,pgpu);
   pmem := @mem;
   cpu := TGBCpu.Create(pmem,pgpu);
-  Application.ProcessMessages;
-  cpu.skipBios;
-  cpu.main;
+//  Application.ProcessMessages;
+//  cpu.skipBios;
+//  cpu.main;
 //  ShowMessage('done');
-//  while not cpu.Paused do
-//  begin
-//    Application.ProcessMessages;
-//    cpu.step(1);
-//  end;
+  while not cpu.Paused do
+  begin
+    //Application.ProcessMessages;
+    cpu.step(1);
+  end;
 
 end;
 
 procedure TForm1.drawScreen(pscreen: PScreenArr);
 var
-  I,line: Integer;
-  posX,posY: Integer;
-//  bmp: TBitmap;
-//  stream: TStream;
+  x,y  : Integer;
+  Line : PRGB32Array;
 begin
-////  Inc(_fps);
   Inc(_fpsTotal);
   if not Timer1.Enabled then
   begin
     Timer1.Enabled := True;
-
   end;
-
   Label1.Caption := IntToStr(_fpsTotal);
-
-//  with _bmp.canvas do
-//  for posY := 0 to 143 do
-//  begin
-//    for posX := 0 to 159 do
-//    begin
-//      Pixels[posX,posY] := GBColor[pscreen^[160*posY+posX]];
-//    end;
-//  end;
-//  DXDraw1.Surface.LoadFromGraphic(_bmp);
-//	DXDraw1.Surface.Canvas.Release;
-//	DXDraw1.Flip;
-
-  DXDraw1.Surface.Fill($F2F5A9); {填充为红色, 注意这个颜色格式是和 HTML 的颜色顺序一样的}
-  with DXDraw1.Surface.Canvas do
+  with _bmp do
   begin
-    Pen.Style:= psClear;
-    for posY := 0 to 143 do
+    PixelFormat := pf32bit;
+//    Width := 160;
+//    Height := 144;
+    for y := 0 to 144 - 1 do
     begin
-      for posX := 0 to 159 do
+      Line := Scanline[y];
+      for x := 0 to 160 - 1 do
       begin
-        case pscreen^[160*posY+posX] of
+        case pscreen^[160*y+x] of
           0:begin
-            DXDraw1.Surface.Canvas.Pixels[posX,posY] :=$F2F5A9;
+            Line[x].B := 255;
+            Line[x].G := 255;
+            Line[x].R := 255;
+            Line[x].A := 0;
           end;
           1:begin
-            DXDraw1.Surface.Canvas.Pixels[posX,posY] :=clYellow;
+            Line[x].B := 192;
+            Line[x].G := 192;
+            Line[x].R := 192;
+            Line[x].A := 0;
           end;
           2:begin
-            DXDraw1.Surface.Canvas.Pixels[posX,posY] :=clRed;
+            Line[x].B := 96;
+            Line[x].G := 96;
+            Line[x].R := 96;
+            Line[x].A := 0;
           end;
           3:begin
-            DXDraw1.Surface.Canvas.Pixels[posX,posY] :=clBlack;
+            Line[x].B := 40;
+            Line[x].G := 40;
+            Line[x].R := 40;
+            Line[x].A := 0;
           end;
         end;
       end;
     end;
   end;
-  DXDraw1.Surface.Canvas.Release; {释放 Canvas 对象}
-  DXDraw1.Flip;
+//  Image1.Invalidate;
+  Image1.Picture.Bitmap := _bmp;
+  Application.ProcessMessages;
 end;
 
 procedure TForm1.drawScreenBMP(pbmp: PGBBmpScren);
@@ -148,14 +150,9 @@ begin
     Timer1.Enabled := True;
 
   end;
-
   Label1.Caption := IntToStr(_fpsTotal);
   Image1.Picture.Bitmap := pbmp^;
-//DXDraw1.Surface.StretchDraw();
-
-//  DXDraw1.Surface.LoadFromGraphic(pbmp^);
-//	DXDraw1.Surface.Canvas.Release;
-//	DXDraw1.Flip;
+  Application.ProcessMessages;
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
@@ -164,8 +161,10 @@ begin
     _fps := 0;
     _fpsTotal := 0;
     _bmp := TBitmap.Create;
+    _bmp.PixelFormat := pf32bit;
     _bmp.Width := 160;
     _bmp.Height :=144;
+  Image1.Picture.Bitmap := _bmp;
     _pbmp := @_bmp;
 end;
 
