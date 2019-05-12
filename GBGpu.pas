@@ -1,8 +1,11 @@
 unit GBGpu;
 
 interface
-uses GBInterruptManager,System.Classes,System.Contnrs,Unit1,Vcl.Graphics;
+uses GBInterruptManager,System.Classes,System.Contnrs,Unit1;
 type Mode = (HBLANK,VBLANK,OAM_ACCESS,VRAM_ACCESS);
+type
+  PScanlineRow = ^TScanlineRow;
+  TScanlineRow = array[0..159] of Integer;
 type Sprite = class
   public
     x,y,tileNumber: Integer;
@@ -25,8 +28,8 @@ type TGBGpu = class
     function LcdControl_getSpriteSize():Integer;
 
     procedure renderScanLine();
-    procedure renderBackground(scanlineRow: array of Integer);
-    procedure renderSprites(scanrow:array of Integer);
+    procedure renderBackground(pscanlineRow:PScanlineRow);
+    procedure renderSprites(pscanlineRow:PScanlineRow);
 
   public
       modeClock: Integer;//临时放开
@@ -38,8 +41,6 @@ type TGBGpu = class
     tileset:array[0..383,0..7,0..7] of Integer;
     screen:TScreenArry;//array[0..23039] of Integer;
     pscreen:PScreenArr;
-    bmpScreen:TBitmap;
-    pbmpScreen:PGBBmpScren;
     backgroundPalette:array[0..3] of Integer;
     spritePalette:array[0..1,0..3] of Integer;
     palette: array[0..3] of Integer;
@@ -162,16 +163,16 @@ begin
     spriteList.Add(Sprite.Create);
   end;
   pscreen := @screen;
-  bmpScreen := TBitmap.Create;
-  bmpScreen.PixelFormat := pf24bit;
-  bmpScreen.Width := 160;
-  bmpScreen.Height := 144;
-  pbmpScreen := @bmpScreen;
+//  bmpScreen := TBitmap.Create;
+//  bmpScreen.PixelFormat := pf24bit;
+//  bmpScreen.Width := 160;
+//  bmpScreen.Height := 144;
+//  pbmpScreen := @bmpScreen;
 
-  wjlGBColor[0] := 255 Shl 16 or 255  shl 8 or 255;//OFF
-  wjlGBColor[1] := 192 Shl 16 or 192  shl 8 or 192;//LIGHT
-  wjlGBColor[2] := 96 Shl 16 or 96  shl 8 or 96;//DARK
-  wjlGBColor[3] := 40 Shl 16 or 40  shl 8 or 40;//ON
+//  wjlGBColor[0] := 255 Shl 16 or 255  shl 8 or 255;//OFF
+//  wjlGBColor[1] := 192 Shl 16 or 192  shl 8 or 192;//LIGHT
+//  wjlGBColor[2] := 96 Shl 16 or 96  shl 8 or 96;//DARK
+//  wjlGBColor[3] := 40 Shl 16 or 40  shl 8 or 40;//ON
 end;
 
 function TGBGpu.LcdControl_getLcdControl: Integer;
@@ -350,7 +351,7 @@ begin
     LcdStatus_hblankEnable := False;
 end;
 
-procedure TGBGpu.renderBackground(scanlineRow: array of Integer);
+procedure TGBGpu.renderBackground(pscanlineRow:PScanlineRow);
 var
   bgmap,bgtile:Boolean;
   mapOffset,lineOffset,canvasOffset: Integer;
@@ -386,7 +387,7 @@ begin
 //    bmpScreen.Canvas.Pixels[screenX,line]:= wjlGBColor[backgroundPalette[colorint]];
 
     canvasOffset := canvasOffset + 1;
-    scanlineRow[I] := colorint;
+    pscanlineRow^[I] := colorint;
     x := x+1;
     if (x=8) then
     begin
@@ -402,18 +403,24 @@ end;
 
 procedure TGBGpu.renderScanLine;
 var
-  scanlineRow:array[0..159] of Integer;
+  scanlineRow:TScanlineRow;
+  _pscanlineRow:PScanlineRow;
 begin
 // 测试，初始化全为0
   FillChar( scanlineRow, SizeOf( scanlineRow ), 0 );
+  _pscanlineRow := @scanlineRow;
 
   if LcdControl_bgWndDisplayPriority then
-    renderBackground(scanlineRow);
+    renderBackground(_pscanlineRow);
+//  FillChar( scanlineRow, SizeOf( scanlineRow ), 0 );
   if LcdControl_spriteDisplayEnable then
-    renderSprites(scanlineRow);
+    renderSprites(_pscanlineRow);
+
+//  FreeAndNil(_pscanlineRow);
+//  FreeAndNil(scanlineRow);
 end;
 
-procedure TGBGpu.renderSprites(scanRow: array of Integer);
+procedure TGBGpu.renderSprites(pscanlineRow:PScanlineRow);
 var
   spriteSize,canvasoffs: Integer;
   I: Integer;
@@ -454,10 +461,15 @@ begin
       if (obj.isYflip) then
       begin
         for J := 0 to 7 do
+        begin
           tilerow[J] := tileset[obj.tileNumber][spriteSize - 1 - (line - obj.y)][J]
+        end;
       end else
       begin
+        for J := 0 to 7 do
+        begin
           tilerow[J] := tileset[obj.tileNumber][line - obj.y][J];
+        end;
       end;
 
       for J := 0 to 7 do
@@ -467,7 +479,7 @@ begin
       // if this sprite has priority OR shows under the bg
       // then render the pixel
       if ((obj.x+J>=0) and (obj.x+J<160) and (tilerow[J]<>0) and
-        ((not obj.belowBackground) or (scanrow[obj.x+J]<=0))) then
+        ((not obj.belowBackground) or (pscanlineRow^[obj.x+J]<=0))) then
       begin
         // If the sprite is X-flipped,
         // write pixels in reverse order

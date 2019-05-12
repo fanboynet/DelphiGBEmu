@@ -3,7 +3,7 @@ object Form1: TForm1
   Top = 353
   Caption = 'Form1'
   ClientHeight = 419
-  ClientWidth = 892
+  ClientWidth = 433
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -44,23 +44,6 @@ object Form1: TForm1
     Caption = 'Button2'
     TabOrder = 0
     OnClick = Button2Click
-  end
-  object DXDraw1: TDXDraw
-    Left = 512
-    Top = 39
-    Width = 320
-    Height = 288
-    AutoInitialize = True
-    AutoSize = True
-    Color = clBlack
-    Display.FixedBitCount = False
-    Display.FixedRatio = True
-    Display.FixedSize = True
-    Options = [doAllowReboot, doWaitVBlank, doCenter, do3D, doDirectX7Mode, doHardware, doSelectDriver]
-    SurfaceHeight = 288
-    SurfaceWidth = 320
-    TabOrder = 1
-    Traces = <>
   end
   object Timer1: TTimer
     Enabled = False

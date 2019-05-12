@@ -62,11 +62,13 @@ var
   _Pmbc:PGBMbc;
 begin
 //  getPath := 'C:\Users\WJL\Desktop\EmuDoc\java-gameboy-emu-master\TestROMs\Super Mario Land (World).gb';
-  getPath := 'D:\Emulator\GB\Tetris.gb';
+  getPath := 'D:\Emulator\GB\Shanghai (USA).gb';
+//  getPath := 'D:\Emulator\GB\bgbtest.gb';
   getStream := TFileStream.Create(getPath, fmOpenRead or fmShareExclusive);
   getStream.Position := 0;
   rom := TGBRom.Create;
   rom.readRom(getStream);
+  getStream.Free;
   gpu := TGBGpu.Create;
   pgpu := @gpu;
   _gbrom := @rom;
@@ -76,7 +78,7 @@ begin
   pmem := @mem;
   cpu := TGBCpu.Create(pmem,pgpu);
 //  Application.ProcessMessages;
-//  cpu.skipBios;
+  cpu.skipBios;
 //  cpu.main;
 //  ShowMessage('done');
   while not cpu.Paused do
@@ -109,28 +111,28 @@ begin
       for x := 0 to 160 - 1 do
       begin
         case pscreen^[160*y+x] of
-          0:begin
-            Line[x].B := 255;
-            Line[x].G := 255;
-            Line[x].R := 255;
+          0:begin//255£¬255£¬255
+            Line[x].B := 208;
+            Line[x].G := 248;
+            Line[x].R := 224;
             Line[x].A := 0;
           end;
-          1:begin
-            Line[x].B := 192;
+          1:begin//192£¬192£¬192
+            Line[x].B := 112;
             Line[x].G := 192;
-            Line[x].R := 192;
+            Line[x].R := 136;
             Line[x].A := 0;
           end;
-          2:begin
-            Line[x].B := 96;
-            Line[x].G := 96;
-            Line[x].R := 96;
+          2:begin//96£¬96£¬96
+            Line[x].B := 86;
+            Line[x].G := 104;
+            Line[x].R := 52;
             Line[x].A := 0;
           end;
-          3:begin
-            Line[x].B := 40;
-            Line[x].G := 40;
-            Line[x].R := 40;
+          3:begin//40,40,40
+            Line[x].B := 32;
+            Line[x].G := 24;
+            Line[x].R := 8;
             Line[x].A := 0;
           end;
         end;
