@@ -17,7 +17,7 @@ unit GBMemory;
 		  FFFF        Interrupt Enable Register
 	 }
 interface
-  uses System.SysUtils,GBRom,GBGpu,GBMbc,GBTimer,GBInterruptManager;
+  uses System.SysUtils,GBRom,GBGpu,GBMbc,GBTimer,GBInterruptManager,GBJoypad;
   const GBBios :array[0..255] of Integer = (
             $31, $FE, $FF, $AF, $21, $FF, $9F, $32, $CB, $7C, $20, $FB, $21, $26, $FF, $0E,
             $11, $3E, $80, $32, $E2, $0C, $3E, $F3, $E2, $32, $3E, $77, $77, $3E, $FC, $E0,
@@ -39,6 +39,7 @@ interface
   private
     _gpu: PGBGpu;
     _gbtimer: TGBTimer;
+    _gbjoypad: TGBJoypad;
     _GBInterrupt: TGBInterruptManager;
     function processUnusedBits(address,value: Integer):Integer;
   public
@@ -239,7 +240,8 @@ begin
   else if (pos = $FF00) then
   begin
     // Joypad.getInstance().getKeysPressed();
-    Result := 223;//
+    Result := _gbjoypad.Instance.getGBKeyPressed;
+//    Result := 223;//
   end
   else if (pos >= $FF01) and (pos <=$FFFF) then
   begin
@@ -320,6 +322,7 @@ begin
     case pos of
       $FF00:begin
         // joypad
+        _gbjoypad.Instance.setGBJoypadMode(val);
       end;
       $FF40:begin
         _gpu^.LcdControl_setLcdControl(val);

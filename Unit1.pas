@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,GBJoypad;
 type
   PScreenArr = ^TScreenArry;
   TScreenArry = array[0..23039] of Integer;
@@ -24,9 +24,13 @@ type
     Label2: TLabel;
     Timer1: TTimer;
     Image1: TImage;
+    Label3: TLabel;
     procedure Button2Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FormKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FormKeyPress(Sender: TObject; var Key: Char);
   private
     { Private declarations }
     _fps,_fpsTotal: Integer;
@@ -35,8 +39,10 @@ type
   public
     { Public declarations }
     //screen:array[0..23039] of Integer;
+    _gbJoyPad: TGBJoypad;
     procedure drawScreen(pscreen: PScreenArr);
     procedure drawScreenBMP(pbmp: PGBBmpScren);
+    procedure GBKeyDownMsg(var msg: TWMKeyDown); message WM_KEYDOWN;
   end;
 
 var
@@ -62,8 +68,9 @@ var
   _Pmbc:PGBMbc;
 begin
 //  getPath := 'C:\Users\WJL\Desktop\EmuDoc\java-gameboy-emu-master\TestROMs\Super Mario Land (World).gb';
-  getPath := 'D:\Emulator\GB\Shanghai (USA).gb';
-//  getPath := 'D:\Emulator\GB\bgbtest.gb';
+//  getPath := 'D:\Emulator\GB\Shanghai (USA).gb';
+  getPath := 'D:\Emulator\GB\Tetris.gb';
+//  getPath := 'D:\Emulator\GB\Super Mario Land (World).gb';
   getStream := TFileStream.Create(getPath, fmOpenRead or fmShareExclusive);
   getStream.Position := 0;
   rom := TGBRom.Create;
@@ -168,6 +175,41 @@ begin
     _bmp.Height :=144;
   Image1.Picture.Bitmap := _bmp;
     _pbmp := @_bmp;
+  Form1.KeyPreview := True;
+end;
+
+procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+//  Form1.Caption := 'Down:' + IntToStr(Key);
+  _gbJoyPad.Instance.GBKeyDown(Key);
+end;
+
+procedure TForm1.FormKeyPress(Sender: TObject; var Key: Char);
+begin
+//  Form1.Caption := 'Press:' + Key;
+end;
+
+procedure TForm1.FormKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+//  Form1.Caption := 'Up:' + IntToStr(Key);
+  _gbJoyPad.Instance.GBKeyUp(Key);
+end;
+
+procedure TForm1.GBKeyDownMsg(var msg: TWMKeyDown);
+var
+  buf: array[0..31] of Char;
+  str: string;
+begin
+  {获取}
+  GetKeyNameText(msg.KeyData, buf, Length(buf));
+  {画出来}
+  str := buf;
+  Caption := str;
+//  rect := ClientRect;
+//  Canvas.FillRect(rect);
+//  Canvas.TextRect(rect, str, [tfSingleLine, tfCenter, tfVerticalCenter]);
+  inherited;
 end;
 
 procedure TForm1.Timer1Timer(Sender: TObject);
