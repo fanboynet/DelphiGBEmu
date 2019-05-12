@@ -6,12 +6,16 @@ type Mode = (HBLANK,VBLANK,OAM_ACCESS,VRAM_ACCESS);
 type
   PScanlineRow = ^TScanlineRow;
   TScanlineRow = array[0..159] of Integer;
-type Sprite = class
-  public
-    x,y,tileNumber: Integer;
-    belowBackground,isXflip,isYflip,isPalette1: Boolean;
-  Constructor Create(); overload;
+
+type TSprite = record
+  X: Integer;
+  Y: Integer;
+  tileNumber: Integer;
+  belowBackground,isXflip,isYflip,isPalette1: Boolean;
 end;
+type PSprite = ^TSprite;
+type GBSprites  = array[0..39] of TSprite;
+type PGBSprites = ^GBSprites;
 
 type TGBGpu = class
   private
@@ -45,7 +49,8 @@ type TGBGpu = class
     spritePalette:array[0..1,0..3] of Integer;
     palette: array[0..3] of Integer;
 
-    spriteList: TObjectList;
+    spriteList: GBSprites;
+    pspriteList: PGBSprites;
 
     procedure step(cycle: Integer);
 
@@ -75,41 +80,37 @@ begin
   spriteNumber := address shr 2;
   if (spriteNumber<40) then
   begin
-    case address and $3 of
+    case (address and $3) of
       // Y-coordinate
       0:begin
-        Sprite(spriteList.Items[spriteNumber]).y := value - 16;
+        pspriteList^[spriteNumber].Y := value - 16;
       end;
       // X-coordinate
       1:begin
-        Sprite(spriteList.Items[spriteNumber]).y := value - 8;
+        pspriteList^[spriteNumber].X := value - 8;
       end;
       // Data tile
       2:begin
-        Sprite(spriteList.Items[spriteNumber]).tileNumber := value;
+        pspriteList^[spriteNumber].tileNumber := value;
       end;
       // Options
       3:begin
         if (value and $10)<>0 then
-          Sprite(spriteList.Items[spriteNumber]).isPalette1 := True
+            pspriteList^[spriteNumber].isPalette1 := True
         else
-          Sprite(spriteList.Items[spriteNumber]).isPalette1 := False;
-
+            pspriteList^[spriteNumber].isPalette1 := False;
         if (value and $20)<>0 then
-          Sprite(spriteList.Items[spriteNumber]).isXflip := True
+            pspriteList^[spriteNumber].isXflip := True
         else
-          Sprite(spriteList.Items[spriteNumber]).isXflip := False;
-
+            pspriteList^[spriteNumber].isXflip := False;
         if (value and $40)<>0 then
-          Sprite(spriteList.Items[spriteNumber]).isYflip := True
+            pspriteList^[spriteNumber].isYflip := True
         else
-          Sprite(spriteList.Items[spriteNumber]).isYflip := False;
-
+            pspriteList^[spriteNumber].isYflip := False;
         if (value and $80)<>0 then
-          Sprite(spriteList.Items[spriteNumber]).belowBackground := True
+            pspriteList^[spriteNumber].belowBackground := True
         else
-          Sprite(spriteList.Items[spriteNumber]).belowBackground := False;
-
+            pspriteList^[spriteNumber].belowBackground := False;
       end;
     end;
   end;
@@ -154,25 +155,32 @@ begin
   palette[2] := 2;
   palette[3] := 3;
 
-  spriteList := TObjectList.Create;
+
   modeClock := 0;
   currentMode := Mode.VRAM_ACCESS;
   lcdControl_setLcdControl($91);
-  for I := 0 to 39 do
-  begin
-    spriteList.Add(Sprite.Create);
-  end;
+
   pscreen := @screen;
-//  bmpScreen := TBitmap.Create;
-//  bmpScreen.PixelFormat := pf24bit;
-//  bmpScreen.Width := 160;
-//  bmpScreen.Height := 144;
-//  pbmpScreen := @bmpScreen;
 
 //  wjlGBColor[0] := 255 Shl 16 or 255  shl 8 or 255;//OFF
 //  wjlGBColor[1] := 192 Shl 16 or 192  shl 8 or 192;//LIGHT
 //  wjlGBColor[2] := 96 Shl 16 or 96  shl 8 or 96;//DARK
 //  wjlGBColor[3] := 40 Shl 16 or 40  shl 8 or 40;//ON
+  // 初始化sprite
+  for I := 0 to 39 do
+  begin
+    with spriteList[I] do
+    begin
+      y := 0; // Y-coordinate of top-left corner, (Value stored is Y-coordinate minus 16)
+      x := 0; // X-coordinate of top-left corner, (Value stored is X-coordinate minus 8)
+      tileNumber := 0;
+      belowBackground := false; // false = above background, true = below background
+      isYflip := false;
+      isXflip := false;
+      isPalette1 := false; // false = palette 0, true = palette 1
+    end;
+  end;
+  pspriteList := @spriteList;
 end;
 
 function TGBGpu.LcdControl_getLcdControl: Integer;
@@ -379,12 +387,6 @@ begin
   begin
     colorint := tileset[tile][y][x];
     screen[canvasOffset] := backgroundPalette[colorint];
-    //测试直接画到bmp上...
-//    if line = 0 then
-//      screenX := 0
-//    else
-//      screenX := canvasOffset mod (160*line);
-//    bmpScreen.Canvas.Pixels[screenX,line]:= wjlGBColor[backgroundPalette[colorint]];
 
     canvasOffset := canvasOffset + 1;
     pscanlineRow^[I] := colorint;
@@ -412,19 +414,15 @@ begin
 
   if LcdControl_bgWndDisplayPriority then
     renderBackground(_pscanlineRow);
-//  FillChar( scanlineRow, SizeOf( scanlineRow ), 0 );
   if LcdControl_spriteDisplayEnable then
     renderSprites(_pscanlineRow);
-
-//  FreeAndNil(_pscanlineRow);
-//  FreeAndNil(scanlineRow);
 end;
 
 procedure TGBGpu.renderSprites(pscanlineRow:PScanlineRow);
 var
   spriteSize,canvasoffs: Integer;
   I: Integer;
-  obj: Sprite;
+//  obj: Sprite;
   pal: array[0..3] of Integer;
   J: Integer;
   tilerow: array[0..7] of Integer;
@@ -434,12 +432,11 @@ begin
   spriteSize := LcdControl_getSpriteSize();
   for I := 0 to 39 do
   begin
-    obj := Sprite(spriteList.Items[i]);
     // Check if this sprite falls on this scanline
-    if (obj.y<=line) and ((obj.y+LcdControl_getSpriteSize())>line) then
+    if ((pspriteList^[I].y<=line) and ((pspriteList^[I].y+LcdControl_getSpriteSize())>line)) then
     begin
     // Palette to use for this sprite
-      if (obj.isPalette1) then
+      if (pspriteList^[I].isPalette1) then
       begin
         for J := 0 to 3 do
         begin
@@ -454,21 +451,21 @@ begin
 
       end;
       // Where to render on the canvas
-      canvasoffs := ((line * 160) + obj.x);
+      canvasoffs := ((line * 160) + pspriteList^[I].x);
 
       // If the sprite is Y-flipped,
       // use the opposite side of the tile
-      if (obj.isYflip) then
+      if (pspriteList^[I].isYflip) then
       begin
         for J := 0 to 7 do
         begin
-          tilerow[J] := tileset[obj.tileNumber][spriteSize - 1 - (line - obj.y)][J]
+          tilerow[J] := tileset[pspriteList^[I].tileNumber][spriteSize - 1 - (line - pspriteList^[I].y)][J]
         end;
       end else
       begin
         for J := 0 to 7 do
         begin
-          tilerow[J] := tileset[obj.tileNumber][line - obj.y][J];
+          tilerow[J] := tileset[pspriteList^[I].tileNumber][line - pspriteList^[I].y][J];
         end;
       end;
 
@@ -478,24 +475,18 @@ begin
       // if it's not colour 0 (transparent), AND
       // if this sprite has priority OR shows under the bg
       // then render the pixel
-      if ((obj.x+J>=0) and (obj.x+J<160) and (tilerow[J]<>0) and
-        ((not obj.belowBackground) or (pscanlineRow^[obj.x+J]<=0))) then
+      if (((pspriteList^[I].x+J)>=0) and ((pspriteList^[I].x+J)<160)) and (tilerow[J]<>0) and
+        ((not pspriteList^[I].belowBackground) or (pscanlineRow^[pspriteList^[I].x + J] <= 0)) then
       begin
         // If the sprite is X-flipped,
         // write pixels in reverse order
-        if obj.isXflip then
+        if pspriteList^[I].isXflip then
           color := pal[tilerow[7-J]]
         else
           color := pal[tilerow[J]];
         screen[canvasoffs] := color;
-        //测试直接画到bmp上...
-//        if line = 0 then
-//          screenX := 0
-//        else
-//          screenX := canvasoffs mod (160*line);
-//        bmpScreen.Canvas.Pixels[screenX,line]:=  backgroundPalette[color];
-      canvasoffs := canvasoffs + 1;
       end;
+      canvasoffs := canvasoffs + 1;
     end;
 
   end;
@@ -533,8 +524,6 @@ begin
           GBInterrupt.Instance.raiseInterruptByIdx(4);// VBLANK
           // 显示器渲染screen
           Form1.drawScreen(pscreen);
-//          Form1.drawScreenBMP(pbmpScreen);
-//          Form1.isLCDOpen := True;
         end else
         begin
           currentMode := Mode.OAM_ACCESS;
@@ -582,19 +571,6 @@ begin
     val := tmp1 or tmp2;
     tileset[tile][y][i] := val;
   end;
-end;
-
-{ TGBGpu.Sprite }
-
-constructor Sprite.Create;
-begin
-  y := 0; // Y-coordinate of top-left corner, (Value stored is Y-coordinate minus 16)
-  x := 0; // X-coordinate of top-left corner, (Value stored is X-coordinate minus 8)
-  tileNumber := 0;
-  belowBackground := false; // false = above background, true = below background
-  isYflip := false;
-  isXflip := false;
-  isPalette1 := false; // false = palette 0, true = palette 1
 end;
 
 end.
