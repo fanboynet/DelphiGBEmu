@@ -1,5 +1,8 @@
 # DelphiGBEmu
 A GameBoy Emulator , Delphi implementation
+支持了手柄....可以真正玩了...
+![image](https://github.com/fanboynet/DelphiGBEmu/blob/master/joypad.png)
+
 2019.5.12 修正一个gpu 代码bug，但还是有bug....速度太快了，得加个限速....
 
 ![image](https://github.com/fanboynet/DelphiGBEmu/blob/master/shanghai_gb.png)
