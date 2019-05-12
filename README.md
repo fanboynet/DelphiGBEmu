@@ -3,7 +3,8 @@ A GameBoy Emulator , Delphi implementation
 2019.5.12 修正一个gpu 代码bug，但还是有bug....速度太快了，得加个限速....
 
 ![image](https://github.com/fanboynet/DelphiGBEmu/blob/master/shanghai_gb.png)
-
+![image](https://github.com/fanboynet/DelphiGBEmu/blob/master/mario_gb.png)
+![image](https://github.com/fanboynet/DelphiGBEmu/blob/master/tetris_gb.png)
 
 2019.5.12 更新，使用scanline解决了显示速度问题，还没有做速度限制 ，快了.....
 还是先解决图像问题再搞这个，还有手柄....
