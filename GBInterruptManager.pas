@@ -107,7 +107,8 @@ begin
   end;
   for I := 0 to 4 do
   begin
-    if (regValue / _GBInterrupt[i].bit) = 1   then
+//    if (regValue = _GBInterrupt[i].regVal) then
+    if (regValue div _GBInterrupt[i].bit) = 1   then
     begin
        _GBInterrupt[i].isEnabled := True;
     end else
@@ -201,7 +202,8 @@ begin
   end;
   for I := 0 to 4 do
   begin
-    if (regValue / _GBInterrupt[i].bit) = 1 then
+//    if (regValue = _GBInterrupt[i].regVal) then
+    if (regValue div _GBInterrupt[i].bit) = 1 then
     begin
       _GBInterrupt[i].isRaised := True;
     end else
