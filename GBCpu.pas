@@ -1,7 +1,7 @@
 unit GBCpu;
 
 interface
-uses GBMemory,GBInterruptManager,GBTimer, GBGpu, System.SysUtils,Unit1,System.Classes;
+uses GBMemory,GBInterruptManager,GBTimer, GBGpu, System.SysUtils,Unit1,System.Classes,GBSound,GBGpu2;
 type TGBCpu = class
   private
     // GB CPU lr35902 的寄存器
@@ -87,9 +87,10 @@ type TGBCpu = class
 //    Flag_N: Boolean; // Subtract Flag
 //    Flag_H: Boolean; // Half Carry Flag
 //    Flag_C: Boolean; // Carry Flag
-    
+
     CPU_Ticks:Integer;
 
+    _debug_opcode: Integer;
     GBInterrupt: TGBInterruptManager;
     GBTimer: TGBTimer;
 
@@ -97,12 +98,15 @@ type TGBCpu = class
     _pGBMem: PGBMemory;
 //    GBGpu: TGBGpu;
     _pGBGpu: PGBGpu;
-
+    _pGBGpuNew:PGBGpuNew;
+    _pGBSound: PGBSound;
     // cpu暂时标识
     Paused: Boolean ;//= False;
     _instr_count: Integer;
+    _icycle_count: Integer;
     _debug_log: String;
     _debug_log_list: TStringlist;
+    useNewGPU: Boolean;
     // 寄存器获取
     function getReg_A():Byte;
     function getReg_F():Byte;
@@ -136,11 +140,9 @@ type TGBCpu = class
 
     function pop_opcode(opcode: Integer):Integer;
     procedure push_opcode(opcode: Integer);
-    // 执行cpu指令
-    procedure run(pos: Integer);
-    // 初始化寄存器
-    procedure InitRegister();
-    Constructor Create(pgbMemory: PGBMemory;pgbGpu: PGBGpu); overload;
+
+    Constructor Create(pgbMemory: PGBMemory;pgbGpu: PGBGpu; pgbSound: PGBSound); overload;
+    Constructor Create(pgbMemory: PGBMemory;pgbGpu: PGBGpuNew; pgbSound: PGBSound); overload;
 
     // 用set/get实现，都操作寄存器F(Reg_F);
     procedure setFlag_Z(value: Boolean);
@@ -171,40 +173,40 @@ begin
   case opcode of
     $8F:begin
       second := getReg_A;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $88:begin
       second := getReg_B;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $89:begin
       second := getReg_C;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $8A:begin
       second := getReg_D;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $8B:begin
       second := getReg_E;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $8C:begin
       second := getReg_H;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $8D:begin
       second := getReg_L;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $8E:begin
       second := _PGBMem^.ReadGBMemory(getReg_HL);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CE:begin
       second := _PGBMem^.ReadGBMemory(Reg_PC);
       Inc(Reg_PC);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
   end;
   oldval := getReg_A;
@@ -229,6 +231,11 @@ begin
   else
     setFlag_H(False);
   setReg_A(result);
+
+  if (opcode=$8E ) or (opcode=$CE ) then
+    consumeClockCycles(8)
+  else
+    consumeClockCycles(4);
 end;
 
 procedure TGBCpu.add16_opcode(opcode: Byte);
@@ -239,26 +246,26 @@ begin
   case opcode of
     $09:begin
       value := getReg_BC;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $19:begin
       value := getReg_DE;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $29:begin
       value := getReg_HL;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $39:begin
       value := Reg_SP;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $E8:begin
       value := _PGBMem^.ReadGBMemory(Reg_PC);
       Reg_PC := Reg_PC + 1;
       if value >127 then
         value := -((not value + 1) and 255);
-      consumeClockCycles(16);
+//      consumeClockCycles(16);
     end;
   end;
   hl := getReg_HL;
@@ -286,12 +293,6 @@ begin
       setFlag_H(True)
     else
       setFlag_H(False);
-//            if ((((hl & 0x0FFF) + (value & 0x0FFF)) & 0x1000) != 0) {
-//                registerFlags.setH();
-//            }
-//            else {
-//                registerFlags.clearH();
-//            }
     if result > $FFFF then
     begin
       setFlag_C(True);
@@ -301,6 +302,11 @@ begin
       setFlag_C(False);
     end;
     setReg_HL(result);
+
+    if (opcode=$E8 ) then    
+      consumeClockCycles(16)
+    else
+      consumeClockCycles(8);    
   end;
 end;
 
@@ -311,40 +317,40 @@ begin
   case opcode of
     $87:begin
       second := getReg_A;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $80:begin
       second := getReg_B;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $81:begin
       second := getReg_C;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $82:begin
       second := getReg_D;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $83:begin
       second := getReg_E;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $84:begin
       second := getReg_H;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $85:begin
       second := getReg_L;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $86:begin
       second := _PGBMem^.ReadGBMemory(getReg_HL);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $C6:begin
       second := _PGBMem^.ReadGBMemory(Reg_PC);
       Inc(Reg_PC);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
   end;
   oldval := getReg_A;
@@ -367,6 +373,11 @@ begin
   else
     setFlag_H(False);
   setReg_A(result);
+
+  if (opcode=$86 ) or (opcode=$C6 ) then
+    consumeClockCycles(8)
+  else
+    consumeClockCycles(4);  
 end;
 
 procedure TGBCpu.and_opcode(opcode: Byte);
@@ -376,40 +387,40 @@ begin
   case opcode of
     $A7:begin
       second := getReg_A;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $A0:begin
       second := getReg_B;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $A1:begin
       second := getReg_C;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $A2:begin
       second := getReg_D;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $A3:begin
       second := getReg_E;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $A4:begin
       second := getReg_H;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $A5:begin
       second := getReg_L;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $A6:begin
       second := _PGBMem^.ReadGBMemory(getReg_HL);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $E6:begin
       second := _PGBMem^.ReadGBMemory(Reg_PC);
       Inc(Reg_PC);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
   end;
   setReg_A(getReg_A and second);
@@ -420,6 +431,12 @@ begin
   setFlag_N(False);
   setFlag_H(True);
   setFlag_C(False);
+
+  if (opcode=$A6 ) or (opcode=$E6 ) then
+    consumeClockCycles(8)
+  else
+    consumeClockCycles(4);
+  
 end;
 
 procedure TGBCpu.bit_opcode(opcode: Word);
@@ -479,37 +496,37 @@ var
 begin
   ret := 0;
   case opcode and $0F of
-    $7,$F:begin
+    $07,$0F:begin
       ret := getReg_A;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
-    $0,$8:begin
+    $00,$08:begin
       ret := getReg_B;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
-    $1,$9:begin
+    $01,$09:begin
       ret := getReg_C;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
-    $2,$A:begin
+    $02,$0A:begin
       ret := getReg_D;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
-    $3,$B:begin
+    $03,$0B:begin
       ret := getReg_E;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
-    $4,$C:begin
+    $04,$0C:begin
       ret := getReg_H;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
-    $5,$D:begin
+    $05,$0D:begin
       ret := getReg_L;
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
-    $6,$E:begin
+    $06,$0E:begin
       ret := _PGBMem^.ReadGBMemory(getReg_HL);
-      consumeClockCycles(16);
+//      consumeClockCycles(16);
     end;
   end;
   Result := ret;
@@ -557,14 +574,38 @@ procedure TGBCpu.consumeClockCycles(cycles: Integer);
 var
   I: Integer;
 begin
+//  Inc(_icycle_count);
+
+//        if _icycle_count = 61138 then
+//         _icycle_count :=61138 ;
 // 消耗时钟周期,待完成
-//  GBTimer.Instance.step(cycles);
-  for I := 0 to cycles-1 do
-  begin
-    GBTimer.Instance.tick;
-  end;
+  GBTimer.Instance.step(cycles);
 // GPU还是要完成一下。
-  _pGBGpu^.step(cycles);
+  if useNewGPU then
+    _pGBGpuNew.updateLCDStatus(cycles)
+  else
+    _pGBGpu^.step(cycles);
+
+//// 处理声音
+//  if (_pGBSound^._debug_i>0) and (_pGBSound^._debug_i<144) then
+////    if (_icycle_count>75342) and (_icycle_count<76342) then
+//       _debug_log_list.Add('I:'+IntToStr(_icycle_count)+':OPCODE:'+IntToStr(_debug_opcode)+
+//                  ':SoundT:'+IntToStr(_pGBSound^._debug_i)+':Cycle:'+IntToStr(cycles)+
+////                  ':REG_F:'+IntToStr(Reg_F)+':REG_A:'+IntToStr(Reg_A)+':PC:'
+////                  +IntToStr(Reg_PC)+':LY:'+IntToStr(_pGBGpu^.line)+':MCLOCK:'
+////                  +IntToStr(_pGBGpu^.modeClock)+':LCDMODE:'+IntToStr(Ord(_pGBGpu^.currentMode)));
+//                  ':CN1:'+ IntToStr(_pGBSound^.channel1.getVolume.getIndex));
+//  if _pGBSound^._debug_i=144 then
+////  if _icycle_count=76342 then
+//  begin
+//      _debug_log_list.SaveToFile('D:\gbsound\wjlsnd.txt');
+//     _debug_log_list.Add(IntToStr(_pGBSound^._debug_i)+':'+IntToStr(cycles));
+//
+//  end;
+
+  
+
+  _pGBSound^.updateSound(cycles);
 end;
 
 procedure TGBCpu.cp_opcode(opcode: Byte);
@@ -574,40 +615,40 @@ begin
   case opcode of
     $bf:begin
       second := getReg_A;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $b8:begin
       second := getReg_B;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $b9:begin
       second := getReg_C;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $ba:begin
       second := getReg_D;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $bb:begin
       second := getReg_E;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $bc:begin
       second := getReg_H;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $bd:begin
       second := getReg_L;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $be:begin
       second := _PGBMem^.ReadGBMemory(getReg_HL);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $fe:begin
       second := _PGBMem^.ReadGBMemory(Reg_PC);
       Inc(Reg_PC);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
   end;
   result := getReg_A - second;
@@ -624,12 +665,43 @@ begin
     setFlag_H(True)
   else
     setFlag_H(False);
+
+  if (opcode = $BE) or (opcode = $FE) then
+    consumeClockCycles(8)
+  else
+    consumeClockCycles(4);
+  
 end;
 
-constructor TGBCpu.Create(pgbMemory: PGBMemory;pgbGpu :PGBGpu);
+constructor TGBCpu.Create(pgbMemory: PGBMemory; pgbGpu: PGBGpuNew;
+  pgbSound: PGBSound);
 begin
-   _PGBMem := pgbMemory;
-   _pGBGpu := pgbGpu;
+  useNewGPU := True;
+   _PGBMem := @pgbMemory^;
+   _pGBGpuNew := @pgbGpu^;
+   _pGBSound := @pgbSound^;
+
+   setReg_A(0);
+   setReg_B(0);
+   setReg_C(0);
+   setReg_D(0);
+   setReg_E(0);
+   setReg_H(0);
+   setReg_L(0);
+   Reg_PC := 0;
+   Reg_SP := 0;
+  _debug_log := '';
+  _debug_log_list := TStringList.Create;
+  _instr_count := 0;
+  _icycle_count := 0;
+end;
+
+constructor TGBCpu.Create(pgbMemory: PGBMemory;pgbGpu :PGBGpu; pgbSound: PGBSound);
+begin
+  useNewGPU := False;
+   _PGBMem := @pgbMemory^;
+   _pGBGpu := @pgbGpu^;
+   _pGBSound := @pgbSound^;
 //   GBGpu := @pgbGpu;
    setReg_A(0);
    setReg_B(0);
@@ -643,6 +715,7 @@ begin
   _debug_log := '';
   _debug_log_list := TStringList.Create;
   _instr_count := 0;
+  _icycle_count := 0;
 end;
 
 procedure TGBCpu.daa_opcode(opcode: Byte);
@@ -728,7 +801,7 @@ begin
     $33:begin// INC SP
       Inc(Reg_SP);
       // 原理论错误，这里不需要执行8周期....bug fix.
-//      consumeClockCycles(8);
+      consumeClockCycles(8);
     end;
     $0b:begin// DEC BC
       setReg_BC(getReg_BC()-1);
@@ -744,163 +817,12 @@ begin
     end;
     $3b:begin// DEC SP
       Dec(Reg_SP);
-//      consumeClockCycles(8);
+       // 原理论错误，这里不需要执行8周期....bug fix
+      consumeClockCycles(8);
     end;
     $04,$0c,$14,$1c,$24,$2c,$34,$3c:begin
       inc_opcode(opcode);
     end;
-//    $04:begin// INC B
-//      setReg_B(getReg_B()+1);
-//      if (getReg_B() and 255 = 0) then
-//      begin
-//        setFlag_Z(True);
-//      end else
-//      begin
-//        setFlag_Z(False);
-//      end;
-//      setFlag_N(False);
-//      if (((getReg_B() - 1) and $0F) + ($0F and 1) >$0F) then
-//      begin
-//        setFlag_H(True);
-//      end else
-//      begin
-//        setFlag_H(False);
-//      end;
-//      consumeClockCycles(4);
-//    end;
-//    $0c:begin// INC C
-//      setReg_C(getReg_C()+1);
-//      if (getReg_C() and 255 = 0) then
-//      begin
-//        setFlag_Z(True);
-//      end else
-//      begin
-//        setFlag_Z(False);
-//      end;
-//      setFlag_N(False);
-//      if (((getReg_C() - 1) and $0F) + ($0F and 1) >$0F) then
-//      begin
-//        setFlag_H(True);
-//      end else
-//      begin
-//        setFlag_H(False);
-//      end;
-//      consumeClockCycles(4);
-//    end;
-//    $14:begin// INC D
-//      setReg_D(getReg_D()+1);
-//      if (getReg_D() and 255 = 0) then
-//      begin
-//        setFlag_Z(True);
-//      end else
-//      begin
-//        setFlag_Z(False);
-//      end;
-//      setFlag_N(False);
-//      if (((getReg_D() - 1) and $0F) + ($0F and 1) >$0F) then
-//      begin
-//        setFlag_H(True);
-//      end else
-//      begin
-//        setFlag_H(False);
-//      end;
-//      consumeClockCycles(4);
-//    end;
-//    $1c:begin// INC E
-//      setReg_E(getReg_E()+1);
-//      if (getReg_E() and 255 = 0) then
-//      begin
-//        setFlag_Z(True);
-//      end else
-//      begin
-//        setFlag_Z(False);
-//      end;
-//      setFlag_N(False);
-//      if (((getReg_E() - 1) and $0F) + ($0F and 1) >$0F) then
-//      begin
-//        setFlag_H(True);
-//      end else
-//      begin
-//        setFlag_H(False);
-//      end;
-//      consumeClockCycles(4);
-//    end;
-//    $24:begin// INC H
-//      setReg_H(getReg_H()+1);
-//      if (getReg_H() and 255 = 0) then
-//      begin
-//        setFlag_Z(True);
-//      end else
-//      begin
-//        setFlag_Z(False);
-//      end;
-//      setFlag_N(False);
-//      if (((getReg_H() - 1) and $0F) + ($0F and 1) >$0F) then
-//      begin
-//        setFlag_H(True);
-//      end else
-//      begin
-//        setFlag_H(False);
-//      end;
-//      consumeClockCycles(4);
-//    end;
-//    $2c:begin// INC L
-//      setReg_L(getReg_L()+1);
-//      if (getReg_L() and 255 = 0) then
-//      begin
-//        setFlag_Z(True);
-//      end else
-//      begin
-//        setFlag_Z(False);
-//      end;
-//      setFlag_N(False);
-//      if (((getReg_L() - 1) and $0F) + ($0F and 1) >$0F) then
-//      begin
-//        setFlag_H(True);
-//      end else
-//      begin
-//        setFlag_H(False);
-//      end;
-//      consumeClockCycles(4);
-//    end;
-//    $34:begin// INC (HL)
-//      _PGBMem^.WriteGBMemory(getReg_HL(),(_PGBMem^.ReadGBMemory(getReg_HL())+1) and 255);
-//      if ((_PGBMem^.ReadGBMemory(getReg_HL())+1) and 255 = 0) then
-//      begin
-//        setFlag_Z(True);
-//      end else
-//      begin
-//        setFlag_Z(False);
-//      end;
-//      setFlag_N(False);
-//      if ((((_PGBMem^.ReadGBMemory(getReg_HL())+1) - 1) and $0F) + ($0F and 1) >$0F) then
-//      begin
-//        setFlag_H(True);
-//      end else
-//      begin
-//        setFlag_H(False);
-//      end;
-//      consumeClockCycles(12);
-//    end;
-//    $3c:begin// INC A
-//      setReg_A(getReg_A()+1);
-//      if (getReg_A() and 255 = 0) then
-//      begin
-//        setFlag_Z(True);
-//      end else
-//      begin
-//        setFlag_Z(False);
-//      end;
-//      setFlag_N(False);
-//      if (((getReg_A() - 1) and $0F) + ($0F and 1) >$0F) then
-//      begin
-//        setFlag_H(True);
-//      end else
-//      begin
-//        setFlag_H(False);
-//      end;
-//      consumeClockCycles(4);
-//    end;
     $05,$0d,$15,$1d,$25,$2d,$35,$3d:begin
       dec_opcode(opcode);
     end;
@@ -1030,7 +952,7 @@ begin
       value := value or tmp;
       pushHelper(Reg_PC);
       Reg_PC := value;
-      consumeClockCycles(12);
+      consumeClockCycles(24);// CD指令是24周期，原写成12
     end;
     $D9:begin// RETI
       retHelper();
@@ -1088,15 +1010,6 @@ begin
     end;
     $C3:begin// JMP
       jmp_opcode($C3);
-      // bug fix ，值用错了
-//      tmp := _PGBMem^.ReadGBMemory(Reg_PC);
-//      Inc(Reg_PC);
-//      value := _PGBMem^.ReadGBMemory(Reg_PC);
-//      Inc(Reg_PC);
-//      tmp := tmp shl 8;
-//      value := value or tmp;
-//      Reg_PC := value;
-//      consumeClockCycles(16);
     end;
     $c4, $cc, $d4, $dc:begin
       callcc_opcode(opcode);
@@ -1171,37 +1084,37 @@ begin
       oldvalue := getReg_B();
       setReg_B(oldvalue - 1);
       value := getReg_B();
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $0d:begin//DEC C
       oldvalue := getReg_C();
       setReg_C(oldvalue - 1);
       value := getReg_C();
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $15:begin//DEC D
       oldvalue := getReg_D();
       setReg_D(oldvalue - 1);
       value := getReg_D();
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $1d:begin//DEC E
       oldvalue := getReg_E();
       setReg_E(oldvalue - 1);
       value := getReg_E();
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $25:begin//INC H
       oldvalue := getReg_H();
       setReg_H(oldvalue - 1);
       value := getReg_H();
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $2d:begin//DEC L
       oldvalue := getReg_L();
       setReg_L(oldvalue - 1);
       value := getReg_L();
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $35:begin//DEC (HL)
       address := getReg_HL();
@@ -1210,13 +1123,13 @@ begin
       value := value - 1;
       value := value and 255;
       _PGBMem^.WriteGBMemory(address,value);
-      consumeClockCycles(12);
+//      consumeClockCycles(12);
     end;
     $3d:begin//DEC A
       oldvalue := getReg_A();
       setReg_A(oldvalue - 1);
       value := getReg_A();
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
   end;
   // 处理标志位寄存器
@@ -1229,12 +1142,18 @@ begin
   end;
   setFlag_N(True);
   if (oldvalue and $0F)<1 then
+//(val & 0x0F) == 0xF
+//  if (value and $0F) = $0F then     //testcode wjl@2019/5/20
   begin
     setFlag_H(True);
   end else
   begin
     setFlag_H(False);
   end;
+  if opcode=$35 then
+    consumeClockCycles(12)
+  else
+    consumeClockCycles(4);
 end;
 
 function TGBCpu.getFlag_C: Boolean;
@@ -1385,43 +1304,43 @@ begin
     $3C:begin
       setReg_A(getReg_A+1);
       value := getReg_A;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $04:begin
       setReg_B(getReg_B+1);
       value := getReg_B;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $0C:begin
       setReg_C(getReg_C+1);
       value := getReg_C;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $14:begin
       setReg_D(getReg_D+1);
       value := getReg_D;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $1C:begin
       setReg_E(getReg_E+1);
       value := getReg_E;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $24:begin
       setReg_H(getReg_H+1);
       value := getReg_H;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $2C:begin
       setReg_L(getReg_L+1);
       value := getReg_L;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $34:begin
       address := getReg_HL;
       value := _pGBMem^.ReadGBMemory(address) + 1;
       _pGBMem^.WriteGBMemory(address,(value and 255));
-      consumeClockCycles(12);
+//      consumeClockCycles(12);
     end;
   end;
   if (value and 255)=0 then
@@ -1433,15 +1352,12 @@ begin
     setFlag_H(True)
   else
     setFlag_H(False);
+  if (opcode=$34 )  then
+    consumeClockCycles(12)
+  else
+    consumeClockCycles(4);
 end;
 
-procedure TGBCpu.InitRegister;
-begin
-//  setReg_AF($0000);
-//  setReg_BC($0000);
-//  setReg_DE($0000);
-//  setReg_HL($0000);
-end;
 
 procedure TGBCpu.jmp_opcode(opcode: Byte);
 var
@@ -1852,19 +1768,12 @@ begin
       consumeClockCycles(8);
     end;
     $EA:begin
-//                mmu.writeByte(mmu.readWord(registerPC.read()), registerA.read());
-//                registerPC.inc();
-//                registerPC.inc();
-//                consumeClockCycles(16);
       _PGBMem^.WriteGBMemory(_PGBMem^.ReadGBMemoryWord(Reg_PC),getReg_A);
       Inc(Reg_PC);
       Inc(Reg_PC);
       consumeClockCycles(16);
     end;
     $F2:begin
-                // Put value at address $FF00 + register C into A , takes 8 cycles
-//                load(registerA, mmu.readByte(registerC.read() + 0xFF00));
-//                consumeClockCycles(8);
       // bug fix，读寄存器C，这里写成了PC....
       setReg_A(_PGBMem^.ReadGBMemory(getReg_C+$FF00));
       consumeClockCycles(8);
@@ -1884,11 +1793,6 @@ begin
       consumeClockCycles(8);
     end;
     $2A:begin
-                // Put value at address HL into A, Increment HL. Takes 8 cycles
-//                temp = readCombinedRegisters(registerH, registerL);
-//                load(registerA, mmu.readByte(temp));
-//                writeCombinedRegisters(registerH, registerL, temp + 1);
-//                consumeClockCycles(8);
       setReg_A(_PGBMem^.ReadGBMemory(getReg_HL));
       setReg_HL(getReg_HL+1);
       consumeClockCycles(8);
@@ -1899,21 +1803,11 @@ begin
       consumeClockCycles(8);
     end;
     $E0:begin
-                // Put A into memory address $FF00+n . 12 cycles
-//                temp = 0xFF00 + mmu.readByte(registerPC.read());
-//                mmu.writeByte(temp, registerA.read());
-//                registerPC.inc();
-//                consumeClockCycles(12);
       _PGBMem^.WriteGBMemory($FF00+_PGBMem^.ReadGBMemory(Reg_PC),getReg_A);
       Inc(Reg_PC);
       consumeClockCycles(12);
     end;
     $F0:begin
-    // Put memory address $FF00+n into A. 12 cycles
-//                temp = 0xFF00 + mmu.readByte(registerPC.read());
-//                load(registerA, mmu.readByte(temp));
-//                registerPC.inc();
-//                consumeClockCycles(12);
       setReg_A(_PGBMem^.ReadGBMemory($FF00+_PGBMem^.ReadGBMemory(Reg_PC)));
       Inc(Reg_PC);
       consumeClockCycles(12);
@@ -1980,14 +1874,6 @@ begin
       consumeClockCycles(12);
     end;
     $08:begin
-//                    lowerValue = mmu.readByte(registerPC.read());
-//                registerPC.inc();
-//                upperValue = mmu.readByte(registerPC.read());
-//                registerPC.inc();
-//                address = ((upperValue << 8) + lowerValue);
-//                mmu.writeByte(address, registerSP.readLow());
-//                mmu.writeByte(address + 1, (registerSP.readHigh() >> 8));
-//                consumeClockCycles(20);
       low := _PGBMem^.ReadGBMemory(Reg_PC);
       Inc(Reg_PC);
       up := _PGBMem^.ReadGBMemory(Reg_PC);
@@ -2012,10 +1898,10 @@ begin
 //  skipBios;
   while not Paused do
   begin
-    if _instr_count>100000 then
+    if _instr_count>300000 then
     begin
       _debug_log_list.SaveToFile('d:\wjlgb.txt');
-      _instr_count:= 100000;
+      _instr_count:= 300000;
     end;
 
 
@@ -2033,40 +1919,40 @@ begin
   case opcode of
     $B7:begin
       second := getReg_A;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $B0:begin
       second := getReg_B;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $B1:begin
       second := getReg_C;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $B2:begin
       second := getReg_D;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $B3:begin
       second := getReg_E;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $B4:begin
       second := getReg_H;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $B5:begin
       second := getReg_L;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $B6:begin
       second := _PGBMem^.ReadGBMemory(getReg_HL);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $F6:begin
       second := _PGBMem^.ReadGBMemory(Reg_PC);
       Inc(Reg_PC);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
   end;
   setReg_A(getReg_A or second);
@@ -2077,6 +1963,10 @@ begin
   setFlag_N(False);
   setFlag_H(False);
   setFlag_C(False);
+  if (opcode=$B6 ) or (opcode=$F6 ) then  
+    consumeClockCycles(8)
+  else
+    consumeClockCycles(4);
 end;
 
 function TGBCpu.popHelper: Integer;
@@ -2143,7 +2033,7 @@ begin
           Reg_PC := _gbInterrupt.handler;
           GBInterrupt.Instance.clearInterruptByIdx(I);
           GBInterrupt.Instance.masterDisable;
-          consumeClockCycles(20);
+//          consumeClockCycles(20);    // 是否真需要执行20周期？？？
         end;
 
       end;
@@ -2221,35 +2111,35 @@ begin
     case opcode of
     $CB0F:begin
       setReg_A(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB08:begin
       setReg_B(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB09:begin
       setReg_C(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB0A:begin
       setReg_D(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB0B:begin
       setReg_E(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB0C:begin
       setReg_H(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB0D:begin
       setReg_L(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB0E:begin
       _PGBMem^.WriteGBMemory(getReg_HL,result);
-      consumeClockCycles(16);
+//      consumeClockCycles(16);
     end;
   end;
   if result = 0 then
@@ -2262,6 +2152,10 @@ begin
     setFlag_C(True)
   else
     setFlag_C(False);
+  if (opcode=$CB0E) then
+    consumeClockCycles(16)
+  else
+    consumeClockCycles(8);
 end;
 
 procedure TGBCpu.res_opcode(opcode: Word);
@@ -2340,10 +2234,6 @@ begin
       value := _PGBMem^.ReadGBMemory(getReg_HL);
     end;
   end;
-          // perform operation
-//        int result = (value << 1) | (value >> 7);
-//        boolean bit7 = ((value & 0b10000000) >> 7) == 1;
-//        result &= 255;
   // bug fix ,CB系，错一堆了。
   result := (value shl 1) or (value shr 7);
   if ((value and $80) shr 7) = 1 then
@@ -2354,35 +2244,35 @@ begin
   case opcode of
     $CB07:begin
       setReg_A(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB00:begin
       setReg_B(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB01:begin
       setReg_C(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB02:begin
       setReg_D(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB03:begin
       setReg_E(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB04:begin
       setReg_H(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB05:begin
       setReg_L(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB06:begin
       _PGBMem^.WriteGBMemory(getReg_HL,result);
-      consumeClockCycles(16);
+//      consumeClockCycles(16);
     end;
   end;
   setFlag_C(bit7);
@@ -2392,6 +2282,10 @@ begin
     setFlag_Z(True)
   else
     setFlag_Z(False);
+  if opcode=$CB06 then
+    consumeClockCycles(16)
+  else
+    consumeClockCycles(8);
 end;
 
 procedure TGBCpu.rl_opcode(opcode: Word);
@@ -2437,35 +2331,35 @@ begin
   case opcode of
     $CB17:begin
       setReg_A(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB10:begin
       setReg_B(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB11:begin
       setReg_C(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB12:begin
       setReg_D(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB13:begin
       setReg_E(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB14:begin
       setReg_H(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB15:begin
       setReg_L(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB16:begin
       _PGBMem^.WriteGBMemory(getReg_HL,result);
-      consumeClockCycles(16);
+//      consumeClockCycles(16);
     end;
   end;
   if result = 0 then
@@ -2475,6 +2369,10 @@ begin
   setFlag_N(False);
   setFlag_H(False);
   setFlag_C(bit7);
+  if opcode=$CB16 then
+    consumeClockCycles(16)
+  else
+    consumeClockCycles(8);
 end;
 
 procedure TGBCpu.rr_opcode(opcode: Word);
@@ -2514,35 +2412,35 @@ begin
   case opcode of
     $CB1F:begin
       setReg_A(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB18:begin
       setReg_B(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB19:begin
       setReg_C(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB1A:begin
       setReg_D(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB1B:begin
       setReg_E(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB1C:begin
       setReg_H(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB1D:begin
       setReg_L(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB1E:begin
       _PGBMem^.WriteGBMemory(getReg_HL,result);
-      consumeClockCycles(16);
+//      consumeClockCycles(16);
     end;
   end;
   if (value and $1) = 1 then
@@ -2555,6 +2453,11 @@ begin
     setFlag_Z(False);
   setFlag_N(False);
   setFlag_H(False);
+  if opcode=$CB1E then
+    consumeClockCycles(16)
+  else
+    consumeClockCycles(8);
+    
 end;
 
 procedure TGBCpu.rst_opcode(opcode: Byte);
@@ -2589,31 +2492,6 @@ begin
   consumeClockCycles(16);
 end;
 
-procedure TGBCpu.run(pos: Integer);
-var
-  op_code: Byte;
-begin
-  InitRegister;
-  Reg_SP := pos;
-  while True do
-  begin
-    Inc(Reg_PC);
-    op_code := _PGBMem^.ReadGBMemory(pos);
-    // 接下来需要实现GB CPU的所有op code，以及每个指令汲及的寄存器修改。
-    case op_code and $FF of
-      $00: // null int - tis a NOP
-      begin
-				Inc(pos);
-      end;
-      $C3:
-      begin
-      // this is test code
-        Inc(pos,3);
-        //break;
-      end;
-    end;
-  end;
-end;
 
 function TGBCpu.getReg_HL: Word;
 begin
@@ -2627,40 +2505,40 @@ begin
   case opcode of
     $9F:begin
       second := getReg_A;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $98:begin
       second := getReg_B;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $99:begin
       second := getReg_C;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $9A:begin
       second := getReg_D;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $9B:begin
       second := getReg_E;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $9C:begin
       second := getReg_H;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $9D:begin
       second := getReg_L;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $9E:begin
       second := _PGBMem^.ReadGBMemory(getReg_HL);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $DE:begin
       second := _PGBMem^.ReadGBMemory(Reg_PC);
       Inc(Reg_PC);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
   end;
   result := getReg_A - second;
@@ -2682,6 +2560,10 @@ begin
   if (result > 255) or (result <0) then
     result := result and 255;
   setReg_A(result);
+  if (opcode=$9E ) or (opcode=$DE ) then
+    consumeClockCycles(8)
+  else
+    consumeClockCycles(4);
 end;
 
 procedure TGBCpu.setFlag_C(value: Boolean);
@@ -2730,8 +2612,6 @@ procedure TGBCpu.setReg_AF(val: Word);
 var
   tmp: Byte;
 begin
-//  Reg_A := val shr 8;
-//  Reg_F := val;
   if (val > $FFFF) or (val < 0) then
   begin
     val := val and $FFFF;
@@ -2740,14 +2620,6 @@ begin
   tmp := val;// 取Word的低4位变成Byte
   tmp := tmp and $F0;//将低4位变0，F寄存器低4位永远是0
   Reg_F := tmp;
-//        if (value > 65535 || value < 0) {
-//            value &= 0b1111_1111_1111_1111;
-//        }
-//
-//        int upper8bits = value / 256; // shift right  by 8 bits;
-//        int lower8bits = value & 0b0000000011111111; // mask out the upper 8 bits.
-//        upper.write(upper8bits);
-//        lower.write(lower8bits);
 end;
 
 procedure TGBCpu.setReg_B(val: Byte);
@@ -2893,35 +2765,35 @@ begin
   case opcode of
     $CB27:begin
       setReg_A(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB20:begin
       setReg_B(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB21:begin
       setReg_C(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB22:begin
       setReg_D(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB23:begin
       setReg_E(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB24:begin
       setReg_H(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB25:begin
       setReg_L(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB26:begin
       _PGBMem^.WriteGBMemory(getReg_HL,result);
-      consumeClockCycles(16);
+//      consumeClockCycles(16);
     end;
   end;
   if result = 0 then
@@ -2931,6 +2803,11 @@ begin
   setFlag_C(carry);
   setFlag_N(False);
   setFlag_H(False);
+  if opcode=$CB26 then
+    consumeClockCycles(16)
+  else
+    consumeClockCycles(8);
+  
 end;
 
 procedure TGBCpu.sra_opcode(opcode: Word);
@@ -2965,9 +2842,6 @@ begin
     end;
   end;
   // bug fix again
-          // perform the operation
-//        boolean carry = ((value & 1) != 0);
-//        int result = (value >> 1) | (value & 0b10000000);
   if (value and 1) <> 0 then
     carry := True
   else
@@ -2976,35 +2850,35 @@ begin
   case opcode of
     $CB2F:begin
       setReg_A(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB28:begin
       setReg_B(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB29:begin
       setReg_C(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB2A:begin
       setReg_D(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB2B:begin
       setReg_E(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB2C:begin
       setReg_H(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB2D:begin
       setReg_L(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB2E:begin
       _PGBMem^.WriteGBMemory(getReg_HL,result);
-      consumeClockCycles(16);
+//      consumeClockCycles(16);
     end;
   end;
   setFlag_C(carry);
@@ -3014,6 +2888,11 @@ begin
     setFlag_Z(False);
   setFlag_H(False);
   setFlag_N(False);
+  if opcode=$CB2E then
+    consumeClockCycles(16)
+  else
+    consumeClockCycles(8);
+  
 end;
 
 procedure TGBCpu.srl_opcode(opcode: Word);
@@ -3055,35 +2934,35 @@ begin
   case opcode of
     $CB3F:begin
       setReg_A(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB38:begin
       setReg_B(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB39:begin
       setReg_C(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB3A:begin
       setReg_D(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB3B:begin
       setReg_E(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB3C:begin
       setReg_H(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB3D:begin
       setReg_L(result);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB3E:begin
       _PGBMem^.WriteGBMemory(getReg_HL,result);
-      consumeClockCycles(16);
+//      consumeClockCycles(16);
     end;
   end;
   if result = 0 then
@@ -3093,6 +2972,10 @@ begin
   setFlag_C(carry);
   setFlag_N(False);
   setFlag_H(False);
+  if opcode = $CB3E then
+    consumeClockCycles(16)
+  else
+    consumeClockCycles(8);
 end;
 
 procedure TGBCpu.step(i:Integer);
@@ -3100,41 +2983,46 @@ var
   opcode: Integer;
 begin
   opcode := 0;
+
     processInterrupts;
     if not isHalted then
     begin
+        Inc(_icycle_count);//
       Inc(_instr_count);
-      if _instr_count = 3 then
-        _instr_count := 3;
-
+//      if _instr_count = 6 then
+//        _instr_count := 6;
+      if _icycle_count = 75345 then
+         _icycle_count :=75345 ;
       opcode := getOpcode;
-
-      if (_instr_count >=0) and (_instr_count < 100000) then
-      begin
-        _debug_log_list.Append(IntToStr(_instr_count)+' Opcode:'+IntToStr(opcode));
-        _debug_log_list.Append('REG_A:'+IntToStr(getReg_A));
-        _debug_log_list.Append('REG_B:'+IntToStr(getReg_B));
-        _debug_log_list.Append('REG_C:'+IntToStr(getReg_C));
-        _debug_log_list.Append('REG_D:'+IntToStr(getReg_D));
-        _debug_log_list.Append('REG_E:'+IntToStr(getReg_E));
-        _debug_log_list.Append('REG_H:'+IntToStr(getReg_H));
-        _debug_log_list.Append('REG_L:'+IntToStr(getReg_L));
-        _debug_log_list.Append('REG_F:'+IntToStr(Reg_F));
-        _debug_log_list.Append('REG_PC:'+IntToStr(Reg_PC));
-        _debug_log_list.Append('REG_SP:'+IntToStr(Reg_SP));
-//        _debug_log_list.Append('romBank:'+IntToStr(_PGBMem^.getMBCRomBank));
-//          _debug_log_list.Append('GPULINE:'+IntToStr(_pGBGpu^.line));
-//          _debug_log_list.Append('modeClock:'+IntToStr(_pGBGpu^.modeClock));
-//        _debug_log_list.Append('WRAM_7425:'+IntToStr(_PGBMem^.ReadGBMemory(56577)));
-//        if GBInterrupt.Instance.getAllInterrupt[2].isRaised then
-//          _debug_log_list.Append('INT 2:isRaised=True')
+      _debug_opcode := opcode;
+//      if (_instr_count >=0) and (_instr_count < 300000) then
+//      begin
+//        _debug_log_list.Append(IntToStr(_instr_count)+' Opcode:'+IntToStr(opcode));
+//        _debug_log_list.Append('REG_A:'+IntToStr(getReg_A));
+//        _debug_log_list.Append('REG_B:'+IntToStr(getReg_B));
+//        _debug_log_list.Append('REG_C:'+IntToStr(getReg_C));
+//        _debug_log_list.Append('REG_D:'+IntToStr(getReg_D));
+//        _debug_log_list.Append('REG_E:'+IntToStr(getReg_E));
+//        _debug_log_list.Append('REG_H:'+IntToStr(getReg_H));
+//        _debug_log_list.Append('REG_L:'+IntToStr(getReg_L));
+//        _debug_log_list.Append('REG_F:'+IntToStr(Reg_F));
+//        _debug_log_list.Append('REG_PC:'+IntToStr(Reg_PC));
+//        _debug_log_list.Append('REG_SP:'+IntToStr(Reg_SP));
+////          _debug_log_list.Append('GPU_Y:'+IntToStr(_pGBGpu^.scrollY));
+////          _debug_log_list.Append('GPU_X:'+IntToStr(_pGBGpu^.scrollX));
+////        _debug_log_list.Append('romBank:'+IntToStr(_PGBMem^.getMBCRomBank));
+////          _debug_log_list.Append('GPULINE:'+IntToStr(_pGBGpu^.line));
+////          _debug_log_list.Append('modeClock:'+IntToStr(_pGBGpu^.modeClock));
+////        _debug_log_list.Append('WRAM_7425:'+IntToStr(_PGBMem^.ReadGBMemory(56577)));
+//        if GBInterrupt.Instance.getAllInterrupt[3].isRaised then
+//          _debug_log_list.Append('INT 3:isRaised=True')
 //        else
-//          _debug_log_list.Append('INT 2:isRaised=False');
-//        if GBInterrupt.Instance.getAllInterrupt[2].isEnabled then
-//          _debug_log_list.Append('INT 2:isEnabled=True')
+//          _debug_log_list.Append('INT 3:isRaised=False');
+//        if GBInterrupt.Instance.getAllInterrupt[3].isEnabled then
+//          _debug_log_list.Append('INT 3:isEnabled=True')
 //        else
-//          _debug_log_list.Append('INT 2:isEnabled=False');
-      end;
+//          _debug_log_list.Append('INT 3:isEnabled=False');
+//      end;
 
       deCode(opcode);
       processEi(opcode);
@@ -3153,40 +3041,40 @@ begin
   case opcode of
     $97:begin
       second := getReg_A;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $90:begin
       second := getReg_B;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $91:begin
       second := getReg_C;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $92:begin
       second := getReg_D;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $93:begin
       second := getReg_E;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $94:begin
       second := getReg_H;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $95:begin
       second := getReg_L;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $96:begin
       second := _PGBMem^.ReadGBMemory(getReg_HL);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $D6:begin
       second := _PGBMem^.ReadGBMemory(Reg_PC);
       Inc(Reg_PC);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
   end;
   result := getReg_A - second;
@@ -3206,6 +3094,10 @@ begin
   if (result >255) or (result < 0) then
     result := result and 255;
   setReg_A(result);
+  if (opcode=$96 ) or (opcode=$D6 ) then
+    consumeClockCycles(8)
+  else
+    consumeClockCycles(4);
 end;
 
 function TGBCpu.swapHelper(value: Integer):Integer;
@@ -3230,42 +3122,42 @@ begin
     $CB37:begin
       value := swapHelper(getReg_A);
       setReg_A(value);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB30:begin
       value := swapHelper(getReg_B);
       setReg_B(value);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB31:begin
       value := swapHelper(getReg_C);
       setReg_C(value);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB32:begin
       value := swapHelper(getReg_D);
       setReg_D(value);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB33:begin
       value := swapHelper(getReg_E);
       setReg_E(value);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB34:begin
       value := swapHelper(getReg_H);
       setReg_H(value);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB35:begin
       value := swapHelper(getReg_L);
       setReg_L(value);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $CB36:begin
       value := swapHelper(_PGBMem^.ReadGBMemory(getReg_HL));
       _PGBMem^.WriteGBMemory(getReg_HL,value);
-      consumeClockCycles(16);
+//      consumeClockCycles(16);
     end;
   end;
   if value = 0 then
@@ -3275,6 +3167,10 @@ begin
   setFlag_H(False);
   setFlag_N(False);
   setFlag_C(False);
+  if opcode=$CB36 then
+    consumeClockCycles(16)
+  else
+    consumeClockCycles(8);
 end;
 
 procedure TGBCpu.xor_opcode(opcode: Byte);
@@ -3284,40 +3180,40 @@ begin
   case opcode of
     $AF:begin
       second := getReg_A;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $A8:begin
       second := getReg_B;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $A9:begin
       second := getReg_C;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $AA:begin
       second := getReg_D;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $AB:begin
       second := getReg_E;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $AC:begin
       second := getReg_H;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $AD:begin
       second := getReg_L;
-      consumeClockCycles(4);
+//      consumeClockCycles(4);
     end;
     $AE:begin
       second := _PGBMem^.ReadGBMemory(getReg_HL);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
     $EE:begin
       second := _PGBMem^.ReadGBMemory(Reg_PC);
       Inc(Reg_PC);
-      consumeClockCycles(8);
+//      consumeClockCycles(8);
     end;
   end;
   setReg_A(getReg_A xor second);
@@ -3328,6 +3224,12 @@ begin
   setFlag_N(False);
   setFlag_H(False);
   setFlag_C(False);
+
+  if (opcode=$AE)  or (opcode = $EE) then
+        consumeClockCycles(8)
+  else
+        consumeClockCycles(4);
+  
 end;
 
 procedure TGBCpu.setReg_HL(val: Word);
