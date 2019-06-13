@@ -475,16 +475,28 @@ begin
       // if it's not colour 0 (transparent), AND
       // if this sprite has priority OR shows under the bg
       // then render the pixel
-      if (((pspriteList^[I].x+J)>=0) and ((pspriteList^[I].x+J)<160)) and (tilerow[J]<>0) and
+      if (((pspriteList^[I].x+J)>=0) and ((pspriteList^[I].x+J)<160)) and //(tilerow[J]<>0) and
         ((not pspriteList^[I].belowBackground) or (pscanlineRow^[pspriteList^[I].x + J] <= 0)) then
       begin
         // If the sprite is X-flipped,
         // write pixels in reverse order
         if pspriteList^[I].isXflip then
-          color := pal[tilerow[7-J]]
-        else
-          color := pal[tilerow[J]];
-        screen[canvasoffs] := color;
+        begin
+          if tilerow[7-J]<>0 then
+          begin
+            color := pal[tilerow[7-J]];
+            screen[canvasoffs] := color;
+          end;
+        end
+        else begin
+          if tilerow[J]<>0 then
+          begin
+            color := pal[tilerow[J]];
+            screen[canvasoffs] := color;
+          end;
+        end;
+
+//        screen[canvasoffs] := color;
       end;
       canvasoffs := canvasoffs + 1;
     end;
