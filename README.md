@@ -1,3 +1,5 @@
+# 归档
+# 新项目：https://github.com/fanboynet/LiangliangGBC
 # DelphiGBEmu
 A GameBoy Emulator , Delphi implementation
 支持了手柄....可以真正玩了...
